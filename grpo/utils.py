@@ -36,6 +36,11 @@ class TrainingConfig(GRPOConfig):
 
     save_full_model: Optional[bool] = False
     num_generations: Optional[int] = 4
+    
+    # 新增参数 - 改为使用Optional[List[str]]，用字符串"False"表示禁用奖励维度
+    reward_dimensions: Optional[List[str]] = field(default_factory=lambda: ["correctness", "efficiency", "comment", "maintainability"])
+    use_weight_net: bool = field(default=True)
+    fixed_weights: Optional[str] = None
 
 @dataclass
 class PEFTLoraConfig:

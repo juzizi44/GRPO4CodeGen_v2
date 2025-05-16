@@ -23,6 +23,7 @@ class DataConfig:
     meta_data: str = "dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl"  # 元数据CSV文件路径
     meta_data_test: str = None  # 测试集元数据路径
     question_id: str = None  # 当前训练的问题ID
+    max_samples: int = None  # 控制使用的最大数据量，None表示使用全部数据
     # eval_dim: str = "comment"  # 评估维度
 
 
@@ -59,6 +60,11 @@ def create_dataset(data_config: DataConfig, meta_file=None):
     # dataset = dataset.map(convert_func, load_from_cache_file=False)
     print("="*50)
     dataset = dataset['train']
+    
+    # 限制数据量
+    if data_config.max_samples is not None and data_config.max_samples > 0:
+        dataset = dataset.select(range(min(data_config.max_samples, len(dataset))))
+        
     print(dataset)
     print("="*50)
     return dataset

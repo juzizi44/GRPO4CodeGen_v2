@@ -1,25 +1,20 @@
-import random
-import json
-from dataclasses import dataclass, field, asdict
-import torch
 import os
-import wandb
-import regex as re
+import re
+import ast
 import time
-
-from transformers import AutoTokenizer
+import json
+import wandb
+import torch
+import random
+from dataclasses import dataclass, field, asdict
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.hf_argparser import HfArgumentParser
 from peft import LoraConfig, get_peft_model
-from trl import get_kbit_device_map, get_quantization_config
-
-
-from data import DataConfig, create_dataset
-
+from trl import GRPOConfig, get_kbit_device_map, get_quantization_config
 from utils import TrainingConfig, ModelConfig, PEFTLoraConfig, load_model_from_checkpoint
+from data import DataConfig, create_dataset
 from trainer import CustomGRPOTrainer
-from transformers import AutoModelForCausalLM
-import ast
-from trl import GRPOConfig
+
 
 def save_configs_to_json(data_config, training_args, model_config, peft_lora_config):
     """
@@ -42,7 +37,6 @@ def save_configs_to_json(data_config, training_args, model_config, peft_lora_con
 
     with open(save_path, "w") as f:
         json.dump(config_dict, f, indent=4)
-
 
 def find_target_linear_names(model, num_lora_modules=-1, lora_namespan_exclude=[], verbose=False):
 
@@ -75,8 +69,6 @@ def find_target_linear_names(model, num_lora_modules=-1, lora_namespan_exclude=[
     # 返回最终筛选出的模块名列表
     return lora_module_names
 
-
-
 def set_requires_grad(parameters, requires_grad):
     """
     批量设置某些模型参数是否参与训练（是否需要计算梯度）
@@ -86,7 +78,6 @@ def set_requires_grad(parameters, requires_grad):
     """
     for p in parameters:
         p.requires_grad = requires_grad
-
 
 def create_model_and_tokenizer(
         model_config, peft_lora_config, training_args,
@@ -178,11 +169,116 @@ def create_model_and_tokenizer(
     # 返回模型、tokenizer 和 LoRA 配置
     return model, tokenizer, peft_config
 
+def parse_reward_dimensions(raw):
+    """
+    解析reward_dimensions参数，支持多种格式，返回list或"false"字符串
+    """
+    # 1. 直接为字符串"false"
+    if isinstance(raw, str) and raw.lower() == "false":
+        return "false"
+    # 2. 单元素列表且为"false"
+    if isinstance(raw, list) and len(raw) == 1 and isinstance(raw[0], str) and raw[0].lower() == "false":
+        return "false"
+    # 3. 单元素列表且为字符串化的列表
+    if isinstance(raw, list) and len(raw) == 1 and isinstance(raw[0], str) and raw[0].startswith('[') and raw[0].endswith(']'):
+        try:
+            parsed = ast.literal_eval(raw[0])
+            if isinstance(parsed, list):
+                return parsed
+        except Exception as e:
+            print(f"解析reward_dimensions嵌套字符串失败: {e}")
+            return ["correctness", "efficiency", "comment", "maintainability"]
+    # 4. 直接为字符串化的列表
+    if isinstance(raw, str):
+        try:
+            parsed = ast.literal_eval(raw)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception as e:
+            print(f"解析reward_dimensions字符串失败: {e}")
+            return ["correctness", "efficiency", "comment", "maintainability"]
+    # 5. 已经是列表
+    if isinstance(raw, list):
+        return raw
+    # 6. 其它情况，返回默认
+    return ["correctness", "efficiency", "comment", "maintainability"]
+
+def parse_fixed_weights(raw):
+    """
+    解析fixed_weights参数，返回dict
+    """
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = ast.literal_eval(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception as e:
+            print(f"解析fixed_weights失败: {e}")
+    # 默认值
+    return {
+        'correctness': 0.5,
+        'efficiency': 0.2,
+        'comment': 0.2,
+        'maintainability': 0.1
+    }
 
 def train():
     ## ====> 1: 解析参数
     parser = HfArgumentParser((DataConfig, TrainingConfig, ModelConfig, PEFTLoraConfig))
     data_config, training_args, model_config, peft_lora_config = parser.parse_args_into_dataclasses()
+    """
+    =======================
+    1. 奖励维度配置 (reward_dimensions)
+    =======================
+
+    用于指定训练时参考的奖励评分维度，可根据实验需求灵活配置：
+
+    1.1 关闭奖励维度（仅用于调试测试）
+        --reward_dimensions false
+
+    1.2 指定单一维度（例如 maintainability）
+        --reward_dimensions maintainability
+
+    1.3 指定多个维度（使用空格分隔，shell 会自动转为列表）
+        --reward_dimensions correctness efficiency comment maintainability
+
+ 
+    =======================
+    2. 权重网络配置 (use_weight_net)
+    =======================
+
+    决定是否启用奖励维度的动态权重学习网络：
+
+    2.1 不使用权重网络（采用固定权重方式）
+        --use_weight_net False
+
+    2.2 启用权重网络（训练中动态学习每个维度的权重）
+        --use_weight_net True
+
+
+    =============================
+    3. 固定权重设置 (fixed_weights)
+    =============================
+
+    仅在未启用权重网络（即 --use_weight_net False）时生效：
+
+    3.1 指定单一维度的权重（将自动归一化为 1）
+        --fixed_weights "{\"maintainability\": 0.7}"
+
+    3.2 指定多个维度的固定权重
+        --fixed_weights "{\"correctness\": 0.5, \"efficiency\": 0.2, \"comment\": 0.2, \"maintainability\": 0.1}"
+    """
+
+    training_args.reward_dimensions = parse_reward_dimensions(training_args.reward_dimensions)
+    training_args.fixed_weights = parse_fixed_weights(training_args.fixed_weights)
+
+    print("========== 维度参数 ==========")
+    print(f"奖励维度: {training_args.reward_dimensions}")
+    print(f"使用权重网络: {training_args.use_weight_net}")
+    print(f"固定权重: {training_args.fixed_weights}")
+    print("=============================")
 
     # 检查LoRA配置的有效性
     assert not (peft_lora_config.lora_enable and model_config.freeze_llm), \
@@ -190,10 +286,11 @@ def train():
 
     if peft_lora_config.lora_enable:
         if peft_lora_config.lora_namespan_exclude is not None:
-            peft_lora_config.lora_namespan_exclude = ast.literal_eval(peft_lora_config.lora_namespan_exclude)
+            # 把 LoRA 应该跳过的模块，解析成真正的 Python 列表对象
+            peft_lora_config.lora_namespan_exclude = ast.literal_eval(peft_lora_config.lora_namespan_exclude) 
         else:
             peft_lora_config.lora_namespan_exclude = []
-
+            
     ## ===> Step 2: 加载和配置模型
     model, tokenizer, peft_config = create_model_and_tokenizer(
         model_config=model_config,
@@ -206,7 +303,7 @@ def train():
         model, checkpoint_step = load_model_from_checkpoint(model, training_args.load_from_pretrained, training_args.load_from_pretrained_step)
     model.train()
 
-    # 配置模型参数梯度
+    # 配置模型参数梯度（我们是启用了lora的）
     if peft_lora_config.lora_enable:
         model_to_configure = model.model
     else:
@@ -230,12 +327,16 @@ def train():
     else:
         valid_dataset = None
 
+    # print一下数据数量
     print(f"===> Selected {len(train_dataset)} samples for training.")
+    if data_config.max_samples is not None:
+        print(f"===> Data limited to {data_config.max_samples} samples (using {len(train_dataset)} samples).")
     if valid_dataset:
         print(f"===> Selected {len(valid_dataset)} samples for testing.")
 
     # 配置数据收集器和训练参数
     num_gpu = int(os.environ.get("WORLD_SIZE", 1))
+
 
     # 计算训练步数
     actual_batch_size = training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps * num_gpu
@@ -256,6 +357,9 @@ def train():
         print(f"===> Save Steps: {training_args.save_steps}")
         print(f"===> Eval Steps: {training_args.eval_steps}")
         print(f"===> Logging Steps: {training_args.logging_steps}")
+        print(f"===> Reward Dimensions: {training_args.reward_dimensions}")
+        print(f"===> Use Weight Net: {training_args.use_weight_net}")
+        print(f"===> Fixed Weights: {training_args.fixed_weights}")
 
     ## ===> Step 4: 保存配置
     if training_args.local_rank == -1 or training_args.local_rank == 0:
@@ -274,8 +378,8 @@ def train():
         peft_config=peft_config,
     )
 
-    # 如果存在已保存的权重网络状态，加载它
-    if training_args.load_from_pretrained is not None:
+    # 如果存在已保存的权重网络状态，且使用权重网络，则加载它
+    if training_args.load_from_pretrained is not None and training_args.use_weight_net:
         weight_net_path = os.path.join(training_args.load_from_pretrained, "checkpoint-" + str(checkpoint_step), "reward_weight_net.pt")
         optimizer_path = os.path.join(training_args.load_from_pretrained, "checkpoint-" + str(checkpoint_step), "reward_weight_optimizer.pt")
         
@@ -287,17 +391,22 @@ def train():
             trainer.reward_weight_optimizer.load_state_dict(torch.load(optimizer_path))
             print("已加载权重优化器状态")
 
-    trainer.train()
-
+    if training_args.load_from_pretrained is not None:
+        resume_from_checkpoint=os.path.join(training_args.load_from_pretrained,  "checkpoint-" + str(checkpoint_step))
+        trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    else:
+        trainer.train()
+        
     # 保存最终模型
     if training_args.local_rank == -1 or training_args.local_rank == 0:
         model_state_dict = model.state_dict()
         torch.save(model_state_dict, os.path.join(training_args.output_dir, 'final_model.pth'))
         model.config.save_pretrained(training_args.output_dir)
 
-        # 保存最终的权重网络状态
-        torch.save(trainer.reward_weight_net.state_dict(), os.path.join(training_args.output_dir, 'final_reward_weight_net.pt'))
-        torch.save(trainer.reward_weight_optimizer.state_dict(), os.path.join(training_args.output_dir, 'final_reward_weight_optimizer.pt'))
+        # 仅当使用权重网络时保存最终的权重网络状态
+        if training_args.use_weight_net:
+            torch.save(trainer.reward_weight_net.state_dict(), os.path.join(training_args.output_dir, 'final_reward_weight_net.pt'))
+            torch.save(trainer.reward_weight_optimizer.state_dict(), os.path.join(training_args.output_dir, 'final_reward_weight_optimizer.pt'))
 
     # 清理分布式训练资源
     if torch.distributed.is_initialized():

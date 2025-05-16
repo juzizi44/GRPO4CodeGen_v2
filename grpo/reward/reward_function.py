@@ -218,16 +218,16 @@ class RealTimeRewardRunner:
                     "avg_cpu_instruction_count": avg_cpu_instruction_count
                 }
                 self.rewards.append(reward)
-                log_and_print(
-                    f"question_id={unique_qid} reward: {json.dumps(reward, ensure_ascii=False)}",
-                    overall_log
-                )
+                # log_and_print(
+                #     f"question_id={unique_qid} reward: {json.dumps(reward, ensure_ascii=False)}",
+                #     overall_log
+                # )
                 logger.info(f"reward: {json.dumps(reward, ensure_ascii=False)}")
-                log_test_results(logger, {
-                    "source_code": full_test_code,
-                    "unittests": unittests,
-                    "result": result
-                }, unique_qid)
+                # log_test_results(logger, {
+                #     "source_code": full_test_code,
+                #     "unittests": unittests,
+                #     "result": result
+                # }, unique_qid)
                 return reward
             else:
                 error_msg = f"question_id={unique_qid} 错误: HTTP {response.status_code}\n{response.text}"
@@ -244,11 +244,11 @@ class RealTimeRewardRunner:
 
     def run(self):
         with open(self.overall_log_path, "a", encoding="utf-8") as overall_log:
-            for idx, obj in enumerate(tqdm(self.data_list, desc="处理进度")):
+            # for idx, obj in enumerate(tqdm(self.data_list, desc="处理进度")):
+            for idx, obj in enumerate(self.data_list):
                 question_id = obj.get("question_id", idx)
                 self.process_question(question_id, overall_log, idx=idx)
         return self.rewards
-
 
 class CodeCommentScorer:
     def __init__(self):

@@ -1,6 +1,6 @@
 export TOKENIZERS_PARALLELISM=false 
 
-deepspeed --master_port=28508 --include localhost:6 train.py \
+deepspeed --master_port=28508 --include localhost:4,5,6,7 train.py \
     --lora_enable True \
     --freeze_llm False \
     --lora_r 16 \
@@ -11,6 +11,7 @@ deepspeed --master_port=28508 --include localhost:6 train.py \
     --num_lora_modules -1 \
     --model_name_or_path Qwen/Qwen2.5-Coder-7B-Instruct \
     --meta_data "/home/ytan089/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl" \
+    --max_samples 1000 \
     --output_dir output_model/20250514 \
     --output_dim 1 \
     --use_special_tokens False \
@@ -29,7 +30,7 @@ deepspeed --master_port=28508 --include localhost:6 train.py \
     --eval_strategy "steps" \
     --logging_steps 10 \
     --eval_epochs 0.5 \
-    --save_epochs 1 \
+    --save_epochs 0.5 \
     --max_length 6144 \
     --gradient_checkpointing True \
     --deepspeed ds_config/zero0.json \
@@ -38,6 +39,9 @@ deepspeed --master_port=28508 --include localhost:6 train.py \
     --dataloader_num_workers 8 \
     --max_prompt_length 3000 \
     --max_completion_length 3000 \
+    --reward_dimensions correctness \
+    --use_weight_net True \
+    --fixed_weights "{\"correctness\": 1}" \
 
     # --beta 0.005 \
     # --optim "adamw_8bit" \
@@ -47,9 +51,8 @@ deepspeed --master_port=28508 --include localhost:6 train.py \
     # --max_grad_norm 0.1 \
     # --log_on_each_node False \
     # --use_vllm False \
-
-        # --load_from_pretrained "./output_model/20250414/" \
-
-echo "当前eval batch size: 4"
-
-
+    # --load_from_pretrained "./output_model/20250414/" \
+    # --load_from_pretrained_step 60 \
+    # --reward_dimensions "false" \
+    # --fixed_weights "{\"maintainability\": 0.7, \"comment\": 0.3}" \
+    # --reward_dimensions correctness maintainability \
