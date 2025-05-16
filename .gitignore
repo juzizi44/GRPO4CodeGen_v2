@@ -1,0 +1,15 @@
+.env
+output
+dataset
+evaluate_process
+grpo/output_model
+grpo/dataset
+grpo/data
+temp*
+error_logs
+logs
+grpo/reward/reward_log
+grpo/temp_some_test
+grpo/__pycache__
+grpo/reward/__pycache__
+grpo/prompt_template/__pycache__
