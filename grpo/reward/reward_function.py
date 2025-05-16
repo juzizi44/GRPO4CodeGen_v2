@@ -25,7 +25,7 @@ import concurrent.futures
 import json
 import re
 import os
-
+from reward.api_key import APIKEY
 
 
 def setup_logging(question_id: int, date_str: str, log_root: str = "reward/reward_log/RealTimeRewardRunner_log") -> logging.Logger:

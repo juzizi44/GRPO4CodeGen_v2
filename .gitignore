@@ -13,3 +13,4 @@ grpo/temp_some_test
 grpo/__pycache__
 grpo/reward/__pycache__
 grpo/prompt_template/__pycache__
+grpo/reward/api_key.py
