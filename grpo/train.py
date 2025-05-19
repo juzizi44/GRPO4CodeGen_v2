@@ -122,6 +122,7 @@ def create_model_and_tokenizer(
         attn_implementation="flash_attention_2",
         cache_dir=cache_dir,
         local_files_only=False,
+        trust_remote_code=True,   # 新增这一行
         **model_kwargs
     )
 
@@ -321,7 +322,7 @@ def train():
             random.seed(42)
             valid_dataset = create_dataset(data_config, meta_file=data_config.meta_data_test)
         else:
-            dataset = train_dataset.train_test_split(test_size=0.20)
+            dataset = train_dataset.train_test_split(test_size=0.1)
             train_dataset = dataset['train']
             valid_dataset = dataset['test']
     else:
@@ -340,7 +341,7 @@ def train():
 
     # 计算训练步数
     actual_batch_size = training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps * num_gpu
-    total_steps = training_args.num_train_epochs * len(train_dataset) // actual_batch_size
+    total_steps = training_args.num_train_epochs * len(train_dataset) * training_args.num_generations * training_args.num_iterations// actual_batch_size
     if training_args.save_epochs is not None:
         training_args.save_steps = round(training_args.save_epochs * len(train_dataset) / actual_batch_size)
     if training_args.eval_epochs is not None:

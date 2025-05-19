@@ -21,11 +21,14 @@ import traceback
 from typing import List, Dict
 from collections import OrderedDict
 from reward.openai_client import *
+# from openai_client import *
 import concurrent.futures
 import json
 import re
 import os
 from reward.api_key import APIKEY
+# from api_key import APIKEY
+
 
 
 def setup_logging(question_id: int, date_str: str, log_root: str = "reward/reward_log/RealTimeRewardRunner_log") -> logging.Logger:
@@ -193,11 +196,13 @@ class RealTimeRewardRunner:
         }
         try:
             response = self.session.post(
-                "http://localhost:5000/api/execute_code",
+                "http://172.18.0.1:5000/api/execute_code",
                 json=test_data,
                 headers={"Content-Type": "application/json"},
-                timeout=10
+                timeout=10,
+                verify=False
             )
+
             if response.status_code == 200:
                 result = response.json()
                 unittest_results = result.get("data", [])
@@ -520,7 +525,7 @@ class LLMCommentScorer:
 if __name__ == "__main__":
     # 先在外部读取并筛选数据
     data_list = []
-    jsonl_path = "/home/ytan089/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl"
+    jsonl_path = "/data/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl"
     start_question_id = 1
     end_question_id = 1000
     i= 1
