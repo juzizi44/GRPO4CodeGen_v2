@@ -41,6 +41,7 @@ class TrainingConfig(GRPOConfig):
     reward_dimensions: Optional[List[str]] = field(default_factory=lambda: ["correctness", "efficiency", "comment", "maintainability"])
     use_weight_net: bool = field(default=True)
     fixed_weights: Optional[str] = None
+    execute_code_url: Optional[str] = None
 
 @dataclass
 class PEFTLoraConfig:

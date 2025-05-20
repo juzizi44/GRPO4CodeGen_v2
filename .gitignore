@@ -16,3 +16,6 @@ grpo/prompt_template/__pycache__
 grpo/reward/api_key.py
 sqenv
 Qwen2.5-Coder-32B-Instruct
+eval_log
+eval_process/__pycache__
+eval_process/api_key.py

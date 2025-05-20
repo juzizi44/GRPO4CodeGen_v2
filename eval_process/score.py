@@ -20,18 +20,18 @@ import re
 import traceback
 from typing import List, Dict
 from collections import OrderedDict
-from reward.openai_client import *
-# from openai_client import *
+# from reward.openai_client import *
+from openai_client import *
 import concurrent.futures
 import json
 import re
 import os
-from reward.api_key import APIKEY
-# from api_key import APIKEY
+# from reward.api_key import APIKEY
+from api_key import APIKEY
 
 
 
-def setup_logging(question_id: int, date_str: str, log_root: str = "reward/reward_log/RealTimeRewardRunner_log") -> logging.Logger:
+def setup_logging(question_id: int, date_str: str, log_root: str = "eval_log/RealTimeRewardRunner_log") -> logging.Logger:
     """设置日志记录器"""
     log_dir = Path(log_root)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -114,7 +114,7 @@ class VerboseRetry(Retry):
 class RealTimeRewardRunner:
     def __init__(self, 
                  data_list: list,
-                 log_root: str = "reward/reward_log/RealTimeRewardRunner_log",
+                 log_root: str = "eval_log/RealTimeRewardRunner_log",
                  execute_code_url: str = "http://172.18.0.1:8899/api/execute_code"):
         self.data_list = data_list
         self.date_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -527,35 +527,15 @@ class LLMCommentScorer:
 if __name__ == "__main__":
     # 先在外部读取并筛选数据
     data_list = []
-    jsonl_path = "/data/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl"
-    start_question_id = 1
-    end_question_id = 1000
-    i= 1
+    jsonl_path = "/data/GRPO4CodeGen_v2/dataset/grpo_inference_data/Qwen2.5-Coder-7B-Instruct_testoutput.jsonl"
+    # start_question_id = 1
+    # end_question_id = 1000
     with open(jsonl_path, 'r', encoding='utf-8') as f:
         for line in f:
             obj = json.loads(line)
             qid = obj.get("question_id")
-            if start_question_id <= int(qid) <= end_question_id:
-                data_list.append(obj)
-                data_list.append(obj)
-                data_list.append(obj)
-                i += 1
-                if i > 3:
-                    break
-    i = 2
-                
-    with open(jsonl_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            obj = json.loads(line)
-            qid = obj.get("question_id")
-            if start_question_id <= int(qid) <= end_question_id:
-                data_list.append(obj)
-                data_list.append(obj)
-                data_list.append(obj)
-                i += 1
-                if i > 3:
-                    break
-    
+            # if start_question_id <= int(qid) <= end_question_id:
+            data_list.append(obj)
     # 支持外部传参
     import sys
     if len(sys.argv) > 1:
@@ -566,8 +546,18 @@ if __name__ == "__main__":
         data_list=data_list,
         execute_code_url=execute_code_url
     )
+    print("开始评分")
+    print(len(data_list))
     rewards = tester.run()
     print(rewards)
+    
+    # 保存评分结果到指定路径
+    save_dir = "/data/GRPO4CodeGen_v2/dataset/score"
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, "Qwen2.5-Coder-7B-Instruct_score.json")
+    with open(save_path, 'w', encoding='utf-8') as f:
+        json.dump(rewards, f, ensure_ascii=False, indent=4)
+    print(f"评分结果已保存到: {save_path}")
 
 
 # if __name__ == "__main__":

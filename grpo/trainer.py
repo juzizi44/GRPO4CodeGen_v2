@@ -60,10 +60,11 @@ class CustomGRPOTrainer(GRPOTrainer):
         meta_data_path: str,  # 添加数据集路径参数
         **kwargs
     ):
-        # 获取参数 - train.py已经解析过，直接使用
-        self.reward_dimensions = kwargs.get('args').reward_dimensions
-        self.use_weight_net = kwargs.get('args').use_weight_net
-        self.fixed_weights = kwargs.get('args').fixed_weights
+        args = kwargs.get('args')
+        self.reward_dimensions = args.reward_dimensions
+        self.use_weight_net = args.use_weight_net
+        self.fixed_weights = args.fixed_weights
+        self.execute_code_url = args.execute_code_url
      
         # 固定奖励值设置
         self._constant_reward = 0.5
@@ -72,6 +73,11 @@ class CustomGRPOTrainer(GRPOTrainer):
         self.reward_weight_net = RewardWeightNet(num_dimensions=4)
         
         kwargs['reward_funcs'] = [self.reward_func]
+        
+        # # 从kwargs中移除父类不接受的参数
+        # if 'execute_code_url' in kwargs:
+        #     kwargs.pop('execute_code_url')
+            
         super().__init__(model=model, **kwargs)
         
         # 确保在训练初期有一个最小的非零奖励
@@ -96,7 +102,7 @@ class CustomGRPOTrainer(GRPOTrainer):
         """
         计算correctness和efficiency得分，使用RealTimeRewardRunner计算(传给运行代码的docker)
         """
-        scorer = RealTimeRewardRunner(datalist)
+        scorer = RealTimeRewardRunner(datalist, execute_code_url=self.execute_code_url)
         rewards = scorer.run()
         # print("****rewards*****")
         # print(rewards)

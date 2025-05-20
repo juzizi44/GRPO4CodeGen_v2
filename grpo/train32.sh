@@ -1,6 +1,6 @@
 export TOKENIZERS_PARALLELISM=false 
 
-deepspeed --master_port=28508 --include localhost:4,5,6,7 train.py \
+deepspeed --master_port=28509 --include localhost:0,1,3 train.py \
     --lora_enable True \
     --freeze_llm False \
     --lora_r 16 \
@@ -11,17 +11,17 @@ deepspeed --master_port=28508 --include localhost:4,5,6,7 train.py \
     --num_lora_modules -1 \
     --model_name_or_path Qwen/Qwen2.5-Coder-7B-Instruct \
     --meta_data "/data/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl" \
-    --execute_code_url "http://172.18.0.1:5000/api/execute_code" \
+    --execute_code_url "http://172.18.0.1:8899/api/execute_code" \
     --max_samples 1000 \
     --output_dir output_model/20250519 \
     --output_dim 1 \
     --use_special_tokens False \
     --reward_token "special" \
-    --per_device_train_batch_size 4 \
-    --per_device_eval_batch_size 4 \
-    --gradient_accumulation_steps 4 \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 1 \
+    --gradient_accumulation_steps 16 \
     --num_train_epochs 12 \
-    --num_generations 4 \
+    --num_generations 3 \
     --num_iterations 2 \
     --learning_rate 1e-5 \
     --special_token_lr 1e-5  \
@@ -30,7 +30,7 @@ deepspeed --master_port=28508 --include localhost:4,5,6,7 train.py \
     --lr_scheduler_type "cosine" \
     --eval_strategy "epoch" \
     --logging_steps 10 \
-    --eval_epochs 20 \
+    --eval_epochs 40 \
     --save_epochs 2 \
     --max_length 4800 \
     --gradient_checkpointing True \
