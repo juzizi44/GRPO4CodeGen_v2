@@ -11,7 +11,7 @@ deepspeed --master_port=28509 --include localhost:0,1,3 train.py \
     --num_lora_modules -1 \
     --model_name_or_path Qwen/Qwen2.5-Coder-7B-Instruct \
     --meta_data "/data/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-train.jsonl" \
-    --execute_code_url "http://172.18.0.1:8899/api/execute_code" \
+    --execute_code_url "http://192.168.77.193:8899/api/execute_code" \
     --max_samples 1000 \
     --output_dir output_model/20250519 \
     --output_dim 1 \

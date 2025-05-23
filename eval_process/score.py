@@ -527,7 +527,7 @@ class LLMCommentScorer:
 if __name__ == "__main__":
     # 先在外部读取并筛选数据
     data_list = []
-    jsonl_path = "/data/GRPO4CodeGen_v2/dataset/grpo_inference_data/Qwen2.5-Coder-7B-Instruct_testoutput.jsonl"
+    jsonl_path = "/data/GRPO4CodeGen_v2/dataset/grpo_inference_data/grpo_onlycorrectness_Qwen2.5-Coder-7B-Instruct_checkpoint1008.jsonl"
     # start_question_id = 1
     # end_question_id = 1000
     with open(jsonl_path, 'r', encoding='utf-8') as f:
@@ -541,7 +541,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         execute_code_url = sys.argv[1]
     else:
-        execute_code_url = "http://172.18.0.1:8899/api/execute_code"
+        execute_code_url = "http://192.168.77.193:8899/api/execute_code"
     tester = RealTimeRewardRunner(
         data_list=data_list,
         execute_code_url=execute_code_url
@@ -554,7 +554,7 @@ if __name__ == "__main__":
     # 保存评分结果到指定路径
     save_dir = "/data/GRPO4CodeGen_v2/dataset/score"
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, "Qwen2.5-Coder-7B-Instruct_score.json")
+    save_path = os.path.join(save_dir, "grpo_onlycorrectness_Qwen2.5-Coder-7B-Instruct_checkpoint1008.jsonl")
     with open(save_path, 'w', encoding='utf-8') as f:
         json.dump(rewards, f, ensure_ascii=False, indent=4)
     print(f"评分结果已保存到: {save_path}")

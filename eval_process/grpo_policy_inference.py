@@ -109,14 +109,22 @@ class GrpoCodeGenerator:
                 [ {'role':'system','content':''}, {'role':'user','content':p} ]
                 for p in batch
             ]
+            input_texts = [
+                self.tokenizer.apply_chat_template(m, tokenize=False)
+                for m in messages
+            ]
             inputs = self.tokenizer(
-                [self.tokenizer.apply_chat_template(m, tokenize=False) for m in messages],
-                return_tensors="pt", padding=True, truncation=True
+                input_texts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True
             ).to(self.device)
-            input_ids = inputs.input_ids
-            with torch.no_grad():
+
+            input_ids = inputs["input_ids"]
+            with torch.inference_mode():  # 更推荐的方式
                 outputs = self.model.generate(
-                    **inputs,
+                    input_ids=input_ids,
+                    attention_mask=inputs.get("attention_mask", None),
                     max_new_tokens=max_new_tokens,
                     do_sample=True,
                     temperature=self.temperature,
@@ -125,6 +133,7 @@ class GrpoCodeGenerator:
                     pad_token_id=self.tokenizer.pad_token_id,
                     repetition_penalty=1.1
                 )
+
             # slice off prompt tokens
             for seq, prompt in zip(outputs, batch):
                 gen_tokens = seq[input_ids.shape[1]:]
@@ -171,7 +180,8 @@ class GrpoCodeGenerator:
                         
                         # 保存这个批次的结果
                         for item, resp in zip(data, responses):
-                            out = {"index": item["index"], "prompt": item["prompt"], "response": resp}
+                            out = dict(item)
+                            out["response"] = resp
                             fout.write(json.dumps(out, ensure_ascii=False) + "\n")
                             fout.flush()  # 确保立即写入磁盘
                         
@@ -188,15 +198,15 @@ class GrpoCodeGenerator:
 
 if __name__ == '__main__':
     gen = GrpoCodeGenerator(
-        base_model_path="Qwen/Qwen2.5-Coder-7B-Instruct",
-        adapter_path="/data/GRPO4CodeGen_v2/grpo/output_model/20250519/checkpoint-112",
-        device="cuda:1",
+        base_model_path="/data/GRPO4CodeGen_v2/cachemodels/models--Qwen--Qwen2.5-Coder-7B-Instruct/models--Qwen--Qwen2.5-Coder-7B-Instruct/snapshots/c03e6d358207e414f1eca0bb1891e29f1db0e242",
+        adapter_path="/data/GRPO4CodeGen_v2/grpo/output_model/20250519/checkpoint-1344",
+        device="cuda:0",
         use_adapter=True
     )
     gen.generate_from_file(
         input_file="/data/GRPO4CodeGen_v2/dataset/LeetCodeDataset_postprocessed/LeetCodeDataset-v0.3.1-test.jsonl",
-        output_file="/data/GRPO4CodeGen_v2/dataset/grpo_inference_data/output_grpo.jsonl",
+        output_file="/data/GRPO4CodeGen_v2/dataset/grpo_inference_data/grpo_onlycorrectness_Qwen2.5-Coder-7B-Instruct_checkpoint1344.jsonl",
         max_new_tokens=2000,
         batch_size=1,
-        num_samples=10
+        num_samples=1000
     )

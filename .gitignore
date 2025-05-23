@@ -19,3 +19,5 @@ Qwen2.5-Coder-32B-Instruct
 eval_log
 eval_process/__pycache__
 eval_process/api_key.py
+cachemodels
+grpo_CriticLoop
