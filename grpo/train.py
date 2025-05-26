@@ -15,6 +15,9 @@ from utils import TrainingConfig, ModelConfig, PEFTLoraConfig, load_model_from_c
 from data import DataConfig, create_dataset
 from trainer import CustomGRPOTrainer
 
+import pandas as pd
+from datasets import Dataset
+
 
 def save_configs_to_json(data_config, training_args, model_config, peft_lora_config):
     """
@@ -314,7 +317,16 @@ def train():
 
     ## ===> Step 3: 加载和配置数据集
     train_dataset = create_dataset(data_config)
-    train_dataset = train_dataset.shuffle(seed=42)
+    # train_dataset = train_dataset.shuffle(seed=42)  # 不再shuffle
+
+    # 按difficulty排序（Easy<Medium<Hard）
+    difficulty_order = {"Easy": 0, "Medium": 1, "Hard": 2}
+
+    df = train_dataset.to_pandas()
+    df['difficulty_order'] = df['difficulty'].map(lambda x: difficulty_order.get(x, 99))
+    df = df.sort_values('difficulty_order')
+    df = df.drop(columns=['difficulty_order'])
+    train_dataset = Dataset.from_pandas(df, preserve_index=False)
 
     # 准备验证集
     if training_args.conduct_eval:
