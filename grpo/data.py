@@ -43,6 +43,7 @@ def convert_anno_csv_to_grpo_data(
         'preCodeSegment': example['preCodeSegment'],
         'postCodeSegment': example['postCodeSegment'],
         'unittests': example['unittests'],
+        'difficulty': example.get('difficulty', None),
     }
 
 
